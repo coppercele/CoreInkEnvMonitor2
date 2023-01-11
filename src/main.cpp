@@ -5,6 +5,7 @@
 #include <LovyanGFX.hpp>
 #include <SensirionI2CScd4x.h>
 #include <Wire.h>
+#include <WiFi.h>>
 #include <esp_adc_cal.h>
 
 SensirionI2CScd4x scd4x;
@@ -13,6 +14,7 @@ struct beans {
   uint16_t co2 = 0;
   float tempeature = 0;
   float humidity = 0;
+  bool isWifiEnable = false;
 } data;
 
 void printUint16Hex(uint16_t value) {
@@ -113,6 +115,37 @@ void makeSprite() {
   sprite.fillRect(160, 0, 20, 40, TFT_WHITE);
   sprite.fillRect(160, 20, 40, 20, TFT_WHITE);
 
+  RTC_TimeTypeDef RTCtime;
+  RTC_DateTypeDef RTCDate;
+  char timeStrbuff[20];
+
+  M5.rtc.GetTime(&RTCtime);
+  M5.rtc.GetDate(&RTCDate);
+
+  sprintf(timeStrbuff, "%02d:%02d", RTCtime.Hours, RTCtime.Minutes);
+  sprite.setCursor(0, 0);
+  sprite.setTextColor(TFT_BLACK, TFT_WHITE);
+  sprite.setFont(&fonts::Font7);
+  sprite.setTextSize(1.3);
+  sprite.print(timeStrbuff);
+
+  if (data.isWifiEnable) {
+  }
+  else {
+    // wifiが使えない場合アイコンに斜線が入る
+    sprite.drawLine(176, 20, 196, 0, TFT_WHITE);
+    sprite.drawLine(177, 20, 197, 0, TFT_WHITE);
+    sprite.drawLine(178, 20, 198, 0, TFT_WHITE);
+    sprite.drawLine(179, 20, 199, 0, TFT_BLACK);
+    sprite.drawLine(180, 20, 200, 0, TFT_BLACK);
+    sprite.drawLine(181, 20, 201, 0, TFT_BLACK);
+    sprite.drawLine(182, 20, 202, 0, TFT_WHITE);
+    sprite.drawLine(183, 20, 203, 0, TFT_WHITE);
+    sprite.drawLine(184, 20, 204, 0, TFT_WHITE);
+  }
+
+  sprite.setFont(&fonts::lgfxJapanGothicP_20);
+  sprite.setTextSize(1);
   sprite.setCursor(0, 65);
   sprite.printf("気温%2.0f℃ 湿度%2.0f％\n", data.tempeature, data.humidity);
 
@@ -125,29 +158,9 @@ void makeSprite() {
   sprite.printf("二酸化炭素濃度\n");
   sprite.fillRect(185, 22, 10, 10, 0);
   sprite.fillRect(180, 27, 20, 35, 0);
-  // sprite.fillRect(185, 42, 15, 25 * (100 - getBatCapacity()) / 100, 1);
+  // sprite.fillRect(185, 32, 10, 25 * (100 - getBatCapacity()) / 100,
+  // TFT_WHITE);
   sprite.fillRect(185, 32, 10, 25, TFT_WHITE);
-
-  RTC_TimeTypeDef RTCtime;
-  RTC_DateTypeDef RTCDate;
-  char timeStrbuff[20];
-
-  M5.rtc.GetTime(&RTCtime);
-  M5.rtc.GetDate(&RTCDate);
-  int hour = 0;
-  hour = RTCtime.Hours + (RTCDate.Date - 1) * 24;
-  // 100時間を超えていたら2桁に切り捨てる
-  if (100 <= hour) {
-    hour %= 100;
-  }
-
-  sprintf(timeStrbuff, "%02d:%02d", hour, RTCtime.Minutes);
-
-  sprite.setCursor(0, 0);
-  sprite.setTextColor(TFT_BLACK, TFT_WHITE);
-  sprite.setFont(&fonts::Font7);
-  sprite.setTextSize(1.3);
-  sprite.print(timeStrbuff);
 
   pushSprite(&InkPageSprite, &sprite);
 }
@@ -211,6 +224,40 @@ void setup() {
   }
 
   Serial.println("Waiting for first measurement... (5 sec)");
+
+  WiFi.begin();
+  int count = 0;
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500); // 500ms毎に.を表示
+    Serial.print(".");
+    count++;
+    if (count == 10) {
+      // 5秒
+      data.isWifiEnable = false;
+      break;
+    }
+  }
+  // NTPで時計合わせをする
+  if (data.isWifiEnable) {
+    Serial.println("\nConnected");
+    Serial.println("ntp configured");
+
+    configTime(9 * 3600L, 0, "ntp.nict.jp", "time.google.com",
+               "ntp.jst.mfeed.ad.jp");
+    data.isWifiEnable = true;
+
+    struct tm timeInfo;
+
+    getLocalTime(&timeInfo);
+
+    RTC_TimeTypeDef TimeStruct;
+
+    TimeStruct.Hours = timeInfo.tm_hour;
+    TimeStruct.Minutes = timeInfo.tm_min;
+    TimeStruct.Seconds = timeInfo.tm_sec;
+
+    M5.Rtc.SetTime(&TimeStruct);
+  }
 }
 
 void loop() {
@@ -246,6 +293,6 @@ void loop() {
   }
   else {
     makeSprite();
-    delay(10000);
+    delay(60 * 000);
   }
 }
