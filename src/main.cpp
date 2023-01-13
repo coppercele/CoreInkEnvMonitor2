@@ -179,11 +179,44 @@ void makeSprite() {
   pushSprite(&InkPageSprite, &sprite);
 }
 
-uint16_t correction_;
-#define FRC 413 // FRCのターゲット値
+void task1(void *pvParameters) {
+  while (true) {
+
+    uint16_t error;
+    char errorMessage[256];
+
+    // Read Measurement
+    bool isDataReady = false;
+    error = scd4x.getDataReadyFlag(isDataReady);
+    if (error) {
+      Serial.print("Error trying to execute readMeasurement(): ");
+      errorToString(error, errorMessage, 256);
+      Serial.println(errorMessage);
+      return;
+    }
+    if (!isDataReady) {
+      return;
+    }
+    error = scd4x.readMeasurement(data.co2, data.tempeature, data.humidity);
+    if (error) {
+      Serial.print("Error trying to execute readMeasurement(): ");
+      errorToString(error, errorMessage, 256);
+      Serial.println(errorMessage);
+    }
+    else if (data.co2 == 0) {
+      Serial.println("Invalid sample detected, skipping.");
+    }
+    else {
+      makeSprite();
+      // 5分おきに測定
+      delay(5 * 60 * 1000);
+    }
+  }
+}
 
 void setup() {
   M5.begin(true, true, false);
+  M5.update();
   lcd.init();
   if (InkPageSprite.creatSprite(0, 0, 200, 200, true) != 0) {
     Serial.printf("Ink Sprite create faild");
@@ -198,21 +231,53 @@ void setup() {
   sprite.setTextSize(1);
   sprite.setTextColor(TFT_BLACK, TFT_WHITE);
 
-  // pushSprite(&InkPageSprite, &sprite);
-  // Serial.begin(115200);
-  // while (!Serial) {
-  //   delay(100);
-  // }
-
-  // Wire.begin();
-
   uint16_t error;
   char errorMessage[256];
 
   scd4x.begin(Wire);
 
-  if (false) {
+  // stop potentially previously started measurement
+  error = scd4x.stopPeriodicMeasurement();
+  if (error) {
+    Serial.print("Error trying to execute stopPeriodicMeasurement(): ");
+    errorToString(error, errorMessage, 256);
+    Serial.println(errorMessage);
+  }
 
+  uint16_t serial0;
+  uint16_t serial1;
+  uint16_t serial2;
+  error = scd4x.getSerialNumber(serial0, serial1, serial2);
+  if (error) {
+    Serial.print("Error trying to execute getSerialNumber(): ");
+    errorToString(error, errorMessage, 256);
+    Serial.println(errorMessage);
+  }
+  else {
+    printSerialNumber(serial0, serial1, serial2);
+  }
+
+  // Start Measurement
+  error = scd4x.startPeriodicMeasurement();
+  if (error) {
+    Serial.print("Error trying to execute startPeriodicMeasurement(): ");
+    errorToString(error, errorMessage, 256);
+    Serial.println(errorMessage);
+  }
+
+  Serial.println("Waiting for first measurement... (5 sec)");
+  delay(5000);
+
+  if (M5.BtnMID.isPressed()) {
+    // calibration start
+    uint16_t correction_;
+    uint16_t FRC = 400; // FRCのターゲット値
+    Serial.println("calibration start");
+    sprite.setCursor(0, 0);
+    sprite.setTextSize(1);
+    sprite.printf(
+        "キャリブレーション中です\n空気の綺麗なところに3分間放置してください");
+    pushSprite(&InkPageSprite, &sprite);
     scd4x.stopPeriodicMeasurement(); // 定期測定モードを停止
     delay(500);
     scd4x.performFactoryReset();      // 設定の初期化
@@ -229,46 +294,14 @@ void setup() {
     Serial.println("Completed."); // FRC完了表示
 
     // M5.Lcd.setCursor(20, 20);
-    // M5.Lcd.printf("FRC. %4.1f", correction_); // FRC補正値を表示
+    Serial.printf("FRC. %d\n", correction_); // FRC補正値を表示
 
-    scd4x.stopPeriodicMeasurement();      // 定期測定モードを停止
-    scd4x.setAutomaticSelfCalibration(1); // ASCの有効化
-    Serial.printf("SCD41:ASC:%d\n", scd4x.getAutomaticSelfCalibration(1));
+    scd4x.stopPeriodicMeasurement(); // 定期測定モードを停止
+    uint16_t asc = 1;
+    scd4x.setAutomaticSelfCalibration(asc); // ASCの有効化
+    scd4x.getAutomaticSelfCalibration(asc);
+    Serial.printf("SCD41:ASC: %s\n", asc == 0 ? "OFF" : "ON");
     scd4x.startPeriodicMeasurement(); // 定期測定モードを開始
-  }
-  else {
-
-    // stop potentially previously started measurement
-    error = scd4x.stopPeriodicMeasurement();
-    if (error) {
-      Serial.print("Error trying to execute stopPeriodicMeasurement(): ");
-      errorToString(error, errorMessage, 256);
-      Serial.println(errorMessage);
-    }
-
-    uint16_t serial0;
-    uint16_t serial1;
-    uint16_t serial2;
-    error = scd4x.getSerialNumber(serial0, serial1, serial2);
-    if (error) {
-      Serial.print("Error trying to execute getSerialNumber(): ");
-      errorToString(error, errorMessage, 256);
-      Serial.println(errorMessage);
-    }
-    else {
-      printSerialNumber(serial0, serial1, serial2);
-    }
-
-    // Start Measurement
-    error = scd4x.startPeriodicMeasurement();
-    if (error) {
-      Serial.print("Error trying to execute startPeriodicMeasurement(): ");
-      errorToString(error, errorMessage, 256);
-      Serial.println(errorMessage);
-    }
-
-    Serial.println("Waiting for first measurement... (5 sec)");
-    // delay(5 * 60 * 1000);
   }
 
   WiFi.begin();
@@ -305,6 +338,8 @@ void setup() {
 
     M5.Rtc.SetTime(&TimeStruct);
   }
+  // loop()内でdelay()を使うとボタンなどが効かなくなるのでマルチタスクで測定する
+  xTaskCreateUniversal(task1, "task1", 8192, NULL, 1, NULL, APP_CPU_NUM);
 }
 
 void loop() {
@@ -313,33 +348,10 @@ void loop() {
   if (M5.BtnPWR.isPressed()) {
     M5.shutdown();
   }
+  if (M5.BtnEXT.isPressed()) {
 
-  uint16_t error;
-  char errorMessage[256];
+    esp_restart();
+  }
 
-  // Read Measurement
-  bool isDataReady = false;
-  error = scd4x.getDataReadyFlag(isDataReady);
-  if (error) {
-    Serial.print("Error trying to execute readMeasurement(): ");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
-    return;
-  }
-  if (!isDataReady) {
-    return;
-  }
-  error = scd4x.readMeasurement(data.co2, data.tempeature, data.humidity);
-  if (error) {
-    Serial.print("Error trying to execute readMeasurement(): ");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
-  }
-  else if (data.co2 == 0) {
-    Serial.println("Invalid sample detected, skipping.");
-  }
-  else {
-    makeSprite();
-    delay(10 * 1000);
-  }
+  delay(1);
 }
