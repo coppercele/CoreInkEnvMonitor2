@@ -165,6 +165,9 @@ void makeSprite() {
   pushSprite(&InkPageSprite, &sprite);
 }
 
+uint16_t correction_;
+#define FRC 413 // FRCのターゲット値
+
 void setup() {
   M5.begin(true, true, false);
   lcd.init();
@@ -194,36 +197,65 @@ void setup() {
 
   scd4x.begin(Wire);
 
-  // stop potentially previously started measurement
-  error = scd4x.stopPeriodicMeasurement();
-  if (error) {
-    Serial.print("Error trying to execute stopPeriodicMeasurement(): ");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
-  }
+  if (false) {
 
-  uint16_t serial0;
-  uint16_t serial1;
-  uint16_t serial2;
-  error = scd4x.getSerialNumber(serial0, serial1, serial2);
-  if (error) {
-    Serial.print("Error trying to execute getSerialNumber(): ");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
+    scd4x.stopPeriodicMeasurement(); // 定期測定モードを停止
+    delay(500);
+    scd4x.performFactoryReset();      // 設定の初期化
+    scd4x.startPeriodicMeasurement(); // 定期測定モードを開始
+    delay(3 * 60 * 1000);             // 3分間通常動作させる
+    scd4x.stopPeriodicMeasurement();  // 定期測定モードを停止
+    delay(500);
+    scd4x.performForcedRecalibration(FRC, correction_); // FRCを実行
+    delay(1000);                                        // FRC後1秒待つ
+
+    // 通常モードでの測定開始
+    while (scd4x.startPeriodicMeasurement() == false) {
+    }
+    Serial.println("Completed."); // FRC完了表示
+
+    // M5.Lcd.setCursor(20, 20);
+    // M5.Lcd.printf("FRC. %4.1f", correction_); // FRC補正値を表示
+
+    scd4x.stopPeriodicMeasurement();      // 定期測定モードを停止
+    scd4x.setAutomaticSelfCalibration(1); // ASCの有効化
+    Serial.printf("SCD41:ASC:%d\n", scd4x.getAutomaticSelfCalibration(1));
+    scd4x.startPeriodicMeasurement(); // 定期測定モードを開始
   }
   else {
-    printSerialNumber(serial0, serial1, serial2);
-  }
 
-  // Start Measurement
-  error = scd4x.startPeriodicMeasurement();
-  if (error) {
-    Serial.print("Error trying to execute startPeriodicMeasurement(): ");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
-  }
+    // stop potentially previously started measurement
+    error = scd4x.stopPeriodicMeasurement();
+    if (error) {
+      Serial.print("Error trying to execute stopPeriodicMeasurement(): ");
+      errorToString(error, errorMessage, 256);
+      Serial.println(errorMessage);
+    }
 
-  Serial.println("Waiting for first measurement... (5 sec)");
+    uint16_t serial0;
+    uint16_t serial1;
+    uint16_t serial2;
+    error = scd4x.getSerialNumber(serial0, serial1, serial2);
+    if (error) {
+      Serial.print("Error trying to execute getSerialNumber(): ");
+      errorToString(error, errorMessage, 256);
+      Serial.println(errorMessage);
+    }
+    else {
+      printSerialNumber(serial0, serial1, serial2);
+    }
+
+    // Start Measurement
+    error = scd4x.startPeriodicMeasurement();
+    if (error) {
+      Serial.print("Error trying to execute startPeriodicMeasurement(): ");
+      errorToString(error, errorMessage, 256);
+      Serial.println(errorMessage);
+    }
+
+    Serial.println("Waiting for first measurement... (5 sec)");
+    // delay(5 * 60 * 1000);
+  }
 
   WiFi.begin();
   int count = 0;
