@@ -15,6 +15,7 @@ struct beans {
   float tempeature = 0;
   float humidity = 0;
   bool isWifiEnable = false;
+  char *message = "";
 } data;
 
 void printUint16Hex(uint16_t value) {
@@ -107,6 +108,7 @@ void makeSprite() {
   sprite.setTextSize(1);
   sprite.setTextColor(TFT_BLACK, TFT_WHITE);
 
+  // Wifiマーク
   sprite.fillCircle(180, 20, 20, TFT_BLACK);
   sprite.fillCircle(180, 20, 16, TFT_WHITE);
   sprite.fillCircle(180, 20, 12, TFT_BLACK);
@@ -122,6 +124,7 @@ void makeSprite() {
   M5.rtc.GetTime(&RTCtime);
   M5.rtc.GetDate(&RTCDate);
 
+  // 時計表示
   sprintf(timeStrbuff, "%02d:%02d", RTCtime.Hours, RTCtime.Minutes);
   sprite.setCursor(0, 0);
   sprite.setTextColor(TFT_BLACK, TFT_WHITE);
@@ -152,15 +155,26 @@ void makeSprite() {
   sprite.setCursor(0, 105);
   sprite.setTextSize(3);
   sprite.printf("%4d", data.co2);
+  sprite.setCursor(155, 135);
   sprite.setTextSize(1);
   sprite.print("ppm");
   sprite.setCursor(0, 90);
   sprite.printf("二酸化炭素濃度\n");
+
+  // 乾電池マーク
   sprite.fillRect(185, 22, 10, 10, 0);
   sprite.fillRect(180, 27, 20, 35, 0);
-  // sprite.fillRect(185, 32, 10, 25 * (100 - getBatCapacity()) / 100,
-  // TFT_WHITE);
-  sprite.fillRect(185, 32, 10, 25, TFT_WHITE);
+  sprite.fillRect(185, 32, 10, 25 * (100 - getBatCapacity()) / 100, TFT_WHITE);
+  // sprite.fillRect(185, 32, 10, 25, TFT_WHITE);
+  if (1000 < data.co2) {
+    sprite.setCursor(0, 170);
+    sprite.setTextColor(TFT_WHITE, TFT_BLACK);
+    sprite.setTextSize(1.2);
+    sprite.print("換気してください\n");
+    sprite.setTextColor(TFT_BLACK, TFT_WHITE);
+    // sendNotify(String(sgp.eCO2) + "ppm 換気してください " +
+    //            String(getBatCapacity()) + "％");
+  }
 
   pushSprite(&InkPageSprite, &sprite);
 }
@@ -184,7 +198,7 @@ void setup() {
   sprite.setTextSize(1);
   sprite.setTextColor(TFT_BLACK, TFT_WHITE);
 
-  pushSprite(&InkPageSprite, &sprite);
+  // pushSprite(&InkPageSprite, &sprite);
   // Serial.begin(115200);
   // while (!Serial) {
   //   delay(100);
@@ -266,8 +280,10 @@ void setup() {
     if (count == 10) {
       // 5秒
       data.isWifiEnable = false;
+      Serial.println("Wifi connection failed");
       break;
     }
+    data.isWifiEnable = true;
   }
   // NTPで時計合わせをする
   if (data.isWifiEnable) {
@@ -276,7 +292,6 @@ void setup() {
 
     configTime(9 * 3600L, 0, "ntp.nict.jp", "time.google.com",
                "ntp.jst.mfeed.ad.jp");
-    data.isWifiEnable = true;
 
     struct tm timeInfo;
 
@@ -325,6 +340,6 @@ void loop() {
   }
   else {
     makeSprite();
-    delay(60 * 000);
+    delay(10 * 1000);
   }
 }
