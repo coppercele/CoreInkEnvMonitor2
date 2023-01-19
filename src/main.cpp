@@ -52,19 +52,9 @@ const float minVoltage = 3.3;
 int getBatCapacity() {
   // 4.02 = 100%, 3.65 = 0%
   const float maxVoltage = 3.98;
-
-  // int cap = (int) (100.0 * (getBatVoltage() - minVoltage)
-  //                  / (maxVoltage - minVoltage));
-  // cap = constrain(cap, 0, 100);
-
   int cap =
       map(getBatVoltage() * 100, minVoltage * 100, maxVoltage * 100, 0, 100);
-  // if (cap > 100) {
-  //   cap = 100;
-  // }
-  // if (cap < 0) {
-  //   cap = 0;
-  // }
+
   cap = constrain(cap, 0, 100);
   return cap;
 }
@@ -103,10 +93,6 @@ void makeSprite() {
   Serial.println(data.humidity);
 
   sprite.clear(TFT_WHITE);
-
-  sprite.setFont(&fonts::lgfxJapanGothicP_20);
-  sprite.setTextSize(1);
-  sprite.setTextColor(TFT_BLACK, TFT_WHITE);
 
   // Wifiマーク
   sprite.fillCircle(180, 20, 20, TFT_BLACK);
