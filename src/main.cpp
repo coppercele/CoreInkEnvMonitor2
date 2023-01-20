@@ -164,7 +164,7 @@ void makeSprite() {
 
 void task1(void *pvParameters) {
   while (true) {
-
+    delay(1);
     uint16_t error;
     char errorMessage[256];
 
@@ -225,19 +225,6 @@ void setup() {
     Serial.print("Error trying to execute stopPeriodicMeasurement(): ");
     errorToString(error, errorMessage, 256);
     Serial.println(errorMessage);
-  }
-
-  uint16_t serial0;
-  uint16_t serial1;
-  uint16_t serial2;
-  error = scd4x.getSerialNumber(serial0, serial1, serial2);
-  if (error) {
-    Serial.print("Error trying to execute getSerialNumber(): ");
-    errorToString(error, errorMessage, 256);
-    Serial.println(errorMessage);
-  }
-  else {
-    printSerialNumber(serial0, serial1, serial2);
   }
 
   // Start Measurement
