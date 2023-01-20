@@ -48,9 +48,8 @@ float getBatVoltage() {
   return BatVol;
 }
 
-const float minVoltage = 3.3;
 int getBatCapacity() {
-  // 4.02 = 100%, 3.65 = 0%
+  const float minVoltage = 3.3;
   const float maxVoltage = 3.98;
   int cap =
       map(getBatVoltage() * 100, minVoltage * 100, maxVoltage * 100, 0, 100);
@@ -118,9 +117,7 @@ void makeSprite() {
   sprite.setTextSize(1.3);
   sprite.print(timeStrbuff);
 
-  if (data.isWifiEnable) {
-  }
-  else {
+  if (!data.isWifiEnable) {
     // wifiが使えない場合アイコンに斜線が入る
     sprite.drawLine(176, 20, 196, 0, TFT_WHITE);
     sprite.drawLine(177, 20, 197, 0, TFT_WHITE);
