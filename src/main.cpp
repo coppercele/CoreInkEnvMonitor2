@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <WiFi.h>>
 #include <esp_adc_cal.h>
+#include <HTTPClient.h>
 
 SensirionI2CScd4x scd4x;
 
@@ -195,6 +196,17 @@ void task1(void *pvParameters) {
       delay(5 * 60 * 1000);
     }
   }
+}
+
+const String host = "https://script.google.com/macros/s/";
+
+void postToGAS() {
+  HTTPClient http;
+  http.begin(host + "?temperature=" + data.tempeature +
+             "&humidity=" + data.humidity + "&co2=" + data.co2);
+  int status_code = http.GET();
+  Serial.printf("get request: status code = %d\r\n", status_code);
+  http.end();
 }
 
 void setup() {
