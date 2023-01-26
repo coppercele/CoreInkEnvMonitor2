@@ -5,9 +5,10 @@
 #include <LovyanGFX.hpp>
 #include <SensirionI2CScd4x.h>
 #include <Wire.h>
-#include <WiFi.h>>
+#include <WiFi.h>
 #include <esp_adc_cal.h>
 #include <HTTPClient.h>
+#include "HTTPSRedirect.h"
 
 SensirionI2CScd4x scd4x;
 
@@ -163,6 +164,19 @@ void makeSprite() {
   pushSprite(&InkPageSprite, &sprite);
 }
 
+const String host = "https://script.google.com/macros/s/"
+                    "AKfycbxpHuJpoiuDoW9XdYxtY1L06xWNIz1MWPrdrG1aS2opngiERod0JO"
+                    "pLoOw-s3T-hoE2/exec";
+
+void getToGAS() {
+  HTTPClient http;
+  http.begin(host + "?temperature=" + data.tempeature +
+             "&humidity=" + data.humidity + "&co2=" + data.co2);
+  int status_code = http.GET();
+  Serial.printf("get request: status code = %d\r\n", status_code);
+  http.end();
+}
+
 void task1(void *pvParameters) {
   while (true) {
     delay(1);
@@ -192,21 +206,11 @@ void task1(void *pvParameters) {
     }
     else {
       makeSprite();
+      // getToGAS();
       // 5分おきに測定
       delay(5 * 60 * 1000);
     }
   }
-}
-
-const String host = "https://script.google.com/macros/s/";
-
-void postToGAS() {
-  HTTPClient http;
-  http.begin(host + "?temperature=" + data.tempeature +
-             "&humidity=" + data.humidity + "&co2=" + data.co2);
-  int status_code = http.GET();
-  Serial.printf("get request: status code = %d\r\n", status_code);
-  http.end();
 }
 
 void setup() {
