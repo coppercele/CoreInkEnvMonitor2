@@ -164,9 +164,24 @@ void makeSprite() {
   pushSprite(&InkPageSprite, &sprite);
 }
 
-const String host = "https://script.google.com/macros/s/";
-
+String host = "script.google.com";
+String url = "macros/s/";
 void getToGAS() {
+  HTTPSRedirect *client;
+  int HTTPS_PORT = 443;
+  String FINGERPRINT = "FI NG ER PR IN T!";
+  client = new HTTPSRedirect(HTTPS_PORT);
+
+  if (!client->connect(host, HTTPS_PORT)) {
+    Serial.println("connection failed");
+    return "";
+  }
+
+  if (!client->verify(FINGERPRINT, host)) {
+    Serial.println("certificate doesn't match");
+  }
+
+  client->GET(url, host);
   HTTPClient http;
   http.begin(host + "?temperature=" + data.tempeature +
              "&humidity=" + data.humidity + "&co2=" + data.co2);
