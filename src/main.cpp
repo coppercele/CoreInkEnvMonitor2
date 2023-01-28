@@ -165,29 +165,32 @@ void makeSprite() {
 }
 
 String host = "script.google.com";
-String url = "macros/s/";
+String url = "/macros/s/";
+
 void getToGAS() {
   HTTPSRedirect *client;
-  int HTTPS_PORT = 443;
-  String FINGERPRINT = "FI NG ER PR IN T!";
-  client = new HTTPSRedirect(HTTPS_PORT);
-
-  if (!client->connect(host, HTTPS_PORT)) {
+  int httpsPort = 443;
+  // String FINGERPRINT = "";
+  client = new HTTPSRedirect(httpsPort);
+  client->setInsecure();
+  client->setPrintResponseBody(true);
+  if (!client->connect(host.c_str(), httpsPort)) {
     Serial.println("connection failed");
-    return "";
   }
 
-  if (!client->verify(FINGERPRINT, host)) {
-    Serial.println("certificate doesn't match");
-  }
+  // if (!client->verify(FINGERPRINT.c_str(), host.c_str())) {
+  //   Serial.println("certificate doesn't match");
+  // }
 
-  client->GET(url, host);
-  HTTPClient http;
-  http.begin(host + "?temperature=" + data.tempeature +
-             "&humidity=" + data.humidity + "&co2=" + data.co2);
-  int status_code = http.GET();
-  Serial.printf("get request: status code = %d\r\n", status_code);
-  http.end();
+  client->GET(url.c_str(), host.c_str());
+  String body = client->getResponseBody();
+  Serial.println(body);
+  // HTTPClient http;
+  // http.begin(host + "?temperature=" + data.tempeature +
+  //            "&humidity=" + data.humidity + "&co2=" + data.co2);
+  // int status_code = http.GET();
+  // Serial.printf("get request: status code = %d\r\n", status_code);
+  // http.end();
 }
 
 void task1(void *pvParameters) {
