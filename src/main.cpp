@@ -164,9 +164,7 @@ void makeSprite() {
   pushSprite(&InkPageSprite, &sprite);
 }
 
-const String host = "https://script.google.com/macros/s/"
-                    "AKfycbxpHuJpoiuDoW9XdYxtY1L06xWNIz1MWPrdrG1aS2opngiERod0JO"
-                    "pLoOw-s3T-hoE2/exec";
+const String host = "https://script.google.com/macros/s/";
 
 void getToGAS() {
   HTTPClient http;
