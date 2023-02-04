@@ -14,7 +14,7 @@ SensirionI2CScd4x scd4x;
 
 struct beans {
   uint16_t co2 = 0;
-  float tempeature = 0;
+  float temperature = 0;
   float humidity = 0;
   bool isWifiEnable = false;
   char *message = "";
@@ -88,7 +88,7 @@ void makeSprite() {
   Serial.print(data.co2);
   Serial.print("\t");
   Serial.print("Temperature:");
-  Serial.print(data.tempeature);
+  Serial.print(data.temperature);
   Serial.print("\t");
   Serial.print("Humidity:");
   Serial.println(data.humidity);
@@ -135,7 +135,7 @@ void makeSprite() {
   sprite.setFont(&fonts::lgfxJapanGothicP_20);
   sprite.setTextSize(1);
   sprite.setCursor(0, 65);
-  sprite.printf("気温%2.0f℃ 湿度%2.0f％\n", data.tempeature, data.humidity);
+  sprite.printf("気温%2.0f℃ 湿度%2.0f％\n", data.temperature, data.humidity);
 
   sprite.setCursor(0, 105);
   sprite.setTextSize(3);
@@ -165,15 +165,14 @@ void makeSprite() {
 }
 
 String host = "script.google.com";
-String url = "/macros/s/";
-
+HTTPSRedirect *client = nullptr;
 void getToGAS() {
-  HTTPSRedirect *client;
+  String url = "/macros/s/";
   int httpsPort = 443;
   // String FINGERPRINT = "";
   client = new HTTPSRedirect(httpsPort);
   client->setInsecure();
-  client->setPrintResponseBody(true);
+  client->setPrintResponseBody(false);
   if (!client->connect(host.c_str(), httpsPort)) {
     Serial.println("connection failed");
   }
@@ -182,9 +181,13 @@ void getToGAS() {
   //   Serial.println("certificate doesn't match");
   // }
 
+  url += "?temperature=" + String(data.temperature) +
+         "&humidity=" + String(data.humidity) + "&co2=" + String(data.co2);
   client->GET(url.c_str(), host.c_str());
   String body = client->getResponseBody();
   Serial.println(body);
+  delete client;
+  client = nullptr;
   // HTTPClient http;
   // http.begin(host + "?temperature=" + data.tempeature +
   //            "&humidity=" + data.humidity + "&co2=" + data.co2);
@@ -211,7 +214,7 @@ void task1(void *pvParameters) {
     if (!isDataReady) {
       return;
     }
-    error = scd4x.readMeasurement(data.co2, data.tempeature, data.humidity);
+    error = scd4x.readMeasurement(data.co2, data.temperature, data.humidity);
     if (error) {
       Serial.print("Error trying to execute readMeasurement(): ");
       errorToString(error, errorMessage, 256);
@@ -222,7 +225,11 @@ void task1(void *pvParameters) {
     }
     else {
       makeSprite();
-      // getToGAS();
+      if (data.isWifiEnable) {
+        Serial.printf("free heap:%d\n", esp_get_free_heap_size());
+        Serial.printf("free heap2:%d\n", ESP.getFreeHeap());
+        getToGAS();
+      }
       // 5分おきに測定
       delay(5 * 60 * 1000);
     }
